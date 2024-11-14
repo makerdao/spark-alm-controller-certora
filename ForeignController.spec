@@ -92,8 +92,14 @@ rule storageAffected(method f) {
     bool activeBefore = active();
     bytes32 mintRecipientsBefore = mintRecipients(anyUint32);
 
-    calldataarg args;
-    f(e, args);
+    if (f.selector != sig:depositPSM(address,uint256).selector) {
+        calldataarg args;
+        f(e, args);
+    } else {
+        address asset; uint256 amount;
+        require asset == usdc || asset == usds || asset == sUsds;
+        depositPSM(e, asset, amount);
+    }
 
     bool hasRoleAfter = hasRole(anyBytes32, anyAddr);
     bytes32 roleAdminAfter = getRoleAdmin(anyBytes32);
