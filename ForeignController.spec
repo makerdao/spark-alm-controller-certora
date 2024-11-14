@@ -358,7 +358,7 @@ rule withdrawPSM(address asset, uint256 amount) {
     IRateLimits.RateLimitData rateLimitsPsmWithdrawData = rateLimits.getRateLimitData(key);
     mathint currentRateLimitBefore = rateLimits.getCurrentRateLimit(e, key);
 
-    mathint amountWithdrawn = psm.retValue();
+    mathint assetsWithdrawn = psm.retValue();
 
     withdrawPSM(e, asset, amount);
 
@@ -366,8 +366,8 @@ rule withdrawPSM(address asset, uint256 amount) {
     address psmLastSenderAfter = psm.lastSender();
     bytes4  psmLastSigAfter = psm.lastSig();
 
-    assert currentRateLimitBefore + amountWithdrawn <= rateLimitsPsmWithdrawData.maxAmount => currentRateLimitAfter == currentRateLimitBefore + amountWithdrawn, "Assert ";
-    assert currentRateLimitBefore + amountWithdrawn > rateLimitsPsmWithdrawData.maxAmount => currentRateLimitAfter == rateLimitsPsmWithdrawData.maxAmount, "Assert ";
+    assert currentRateLimitBefore == max_uint256 => currentRateLimitAfter == max_uint256, "Assert ";
+    assert currentRateLimitBefore < max_uint256 => currentRateLimitAfter == currentRateLimitBefore - assetsWithdrawn, "Assert ";
     assert psmLastSenderAfter == proxy, "Assert ";
     assert psmLastSigAfter == to_bytes4(0xd9caed12), "Assert ";
 }
@@ -390,7 +390,7 @@ rule withdrawPSM_revert(address asset, uint256 amount) {
     require e.block.timestamp >= rateLimitsPsmWithdrawData.lastUpdated;
     require rateLimitsPsmWithdrawData.slope * (e.block.timestamp - rateLimitsPsmWithdrawData.lastUpdated) + rateLimitsPsmWithdrawData.lastAmount <= max_uint256;
 
-    mathint amountWithdrawn = psm.retValue();
+    mathint assetsWithdrawn = psm.retValue();
 
     withdrawPSM@withrevert(e, asset, amount);
 
@@ -398,7 +398,7 @@ rule withdrawPSM_revert(address asset, uint256 amount) {
     bool revert2 = !hasRoleRelayerSender;
     bool revert3 = !active;
     bool revert4 = rateLimitsPsmWithdrawData.maxAmount == 0;
-    bool revert5 = rateLimitsPsmWithdrawData.maxAmount < max_uint256 && currentRateLimit + amountWithdrawn > max_uint256;
+    bool revert5 = assetsWithdrawn > currentRateLimit;
     bool revert6 = !callProxySuccess;
 
     assert lastReverted <=> revert1 || revert2 || revert3 ||
