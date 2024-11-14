@@ -289,16 +289,86 @@ rule getCurrentRateLimit(bytes32 key) {
     assert limitRet == limit, "Assert 1";
 }
 
-// // Verify correct storage changes for non reverting triggerRateLimitDecrease
-// rule triggerRateLimitDecrease(bytes32 key, uint256 amountToDecrease) {
-//     env e;
+// Verify correct storage changes for non reverting triggerRateLimitDecrease
+rule triggerRateLimitDecrease(bytes32 key, uint256 amountToDecrease) {
+    env e;
 
-//     triggerRateLimitDecrease(e, key, amountToDecrease);
+    IRateLimits.RateLimitData dataKeyBefore = getRateLimitData(key);
 
-//     IRateLimits.RateLimitData dataAfter = getRateLimitData(key);
+    triggerRateLimitDecrease(e, key, amountToDecrease);
 
-//     assert dataAfter.maxAmount == max_uint256, "Assert 1";
-//     assert dataAfter.slope == 0, "Assert 2";
-//     assert dataAfter.lastAmount == max_uint256, "Assert 3";
-//     assert dataAfter.lastUpdated == e.block.timestamp, "Assert 4";
-// }
+    IRateLimits.RateLimitData dataKeyAfter = getRateLimitData(key);
+
+    assert dataKeyAfter.maxAmount == dataKeyBefore.maxAmount, "Assert 1";
+    assert dataKeyAfter.slope == dataKeyBefore.slope, "Assert 2";
+    assert dataKeyBefore.maxAmount == max_uint256 => dataKeyAfter.lastAmount == dataKeyBefore.lastAmount, "Assert 3";
+    assert dataKeyBefore.maxAmount < max_uint256 => dataKeyAfter.lastAmount == defMin(dataKeyBefore.slope * (e.block.timestamp - dataKeyBefore.lastUpdated) + dataKeyBefore.lastAmount, dataKeyBefore.maxAmount) - amountToDecrease, "Assert 4";
+    assert dataKeyBefore.maxAmount == max_uint256 => dataKeyAfter.lastUpdated == dataKeyBefore.lastUpdated, "Assert 5";
+    assert dataKeyBefore.maxAmount < max_uint256 => dataKeyAfter.lastUpdated == e.block.timestamp, "Assert 6";
+}
+
+// Verify revert rules on triggerRateLimitDecrease
+rule triggerRateLimitDecrease_revert(bytes32 key, uint256 amountToDecrease) {
+    env e;
+
+    bool hasRoleControllerSender = hasRole(CONTROLLER(), e.msg.sender);
+
+    IRateLimits.RateLimitData dataKey = getRateLimitData(key);
+    mathint currentRateLimit = getCurrentRateLimit(e, key);
+
+    // Practical assumptions
+    require e.block.timestamp >= dataKey.lastUpdated;
+
+    triggerRateLimitDecrease@withrevert(e, key, amountToDecrease);
+
+    bool revert1 = e.msg.value > 0;
+    bool revert2 = !hasRoleControllerSender;
+    bool revert3 = dataKey.maxAmount == 0;
+    bool revert4 = dataKey.maxAmount < max_uint256 && dataKey.slope * (e.block.timestamp - dataKey.lastUpdated) + dataKey.lastAmount > max_uint256;
+    bool revert5 = amountToDecrease > currentRateLimit;
+
+    assert lastReverted <=> revert1 || revert2 || revert3 ||
+                            revert4 || revert5, "Revert rules failed";
+}
+
+// Verify correct storage changes for non reverting triggerRateLimitIncrease
+rule triggerRateLimitIncrease(bytes32 key, uint256 amountToIncrease) {
+    env e;
+
+    IRateLimits.RateLimitData dataKeyBefore = getRateLimitData(key);
+
+    triggerRateLimitIncrease(e, key, amountToIncrease);
+
+    IRateLimits.RateLimitData dataKeyAfter = getRateLimitData(key);
+
+    assert dataKeyAfter.maxAmount == dataKeyBefore.maxAmount, "Assert 1";
+    assert dataKeyAfter.slope == dataKeyBefore.slope, "Assert 2";
+    assert dataKeyBefore.maxAmount == max_uint256 => dataKeyAfter.lastAmount == dataKeyBefore.lastAmount, "Assert 3";
+    assert dataKeyBefore.maxAmount < max_uint256 => dataKeyAfter.lastAmount == defMin(dataKeyBefore.slope * (e.block.timestamp - dataKeyBefore.lastUpdated) + dataKeyBefore.lastAmount + amountToIncrease, dataKeyBefore.maxAmount), "Assert 4";
+    assert dataKeyBefore.maxAmount == max_uint256 => dataKeyAfter.lastUpdated == dataKeyBefore.lastUpdated, "Assert 5";
+    assert dataKeyBefore.maxAmount < max_uint256 => dataKeyAfter.lastUpdated == e.block.timestamp, "Assert 6";
+}
+
+// Verify revert rules on triggerRateLimitIncrease
+rule triggerRateLimitIncrease_revert(bytes32 key, uint256 amountToIncrease) {
+    env e;
+
+    bool hasRoleControllerSender = hasRole(CONTROLLER(), e.msg.sender);
+
+    IRateLimits.RateLimitData dataKey = getRateLimitData(key);
+    mathint currentRateLimit = getCurrentRateLimit(e, key);
+
+    // Practical assumptions
+    require e.block.timestamp >= dataKey.lastUpdated;
+
+    triggerRateLimitIncrease@withrevert(e, key, amountToIncrease);
+
+    bool revert1 = e.msg.value > 0;
+    bool revert2 = !hasRoleControllerSender;
+    bool revert3 = dataKey.maxAmount == 0;
+    bool revert4 = dataKey.maxAmount < max_uint256 && dataKey.slope * (e.block.timestamp - dataKey.lastUpdated) + dataKey.lastAmount > max_uint256;
+    bool revert5 = dataKey.maxAmount < max_uint256 && currentRateLimit + amountToIncrease > max_uint256;
+
+    assert lastReverted <=> revert1 || revert2 || revert3 ||
+                            revert4 || revert5, "Revert rules failed";
+}
