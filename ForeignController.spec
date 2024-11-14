@@ -47,6 +47,7 @@ methods {
         _.withdraw(address,address,uint256),
         _.depositForBurn(uint256,uint32,bytes32,address)
     ] default HAVOC_ALL;
+    function _.burnLimitsPerMessage(address token) external => burnLimitsPerMessageSummary() expect uint256;
 }
 
 persistent ghost bool callProxySuccess;
@@ -60,6 +61,8 @@ ghost uint256 cctpBurnLimit;
 function burnLimitsPerMessageSummary() returns uint256 {
     return cctpBurnLimit;
 }
+
+definition defDivUp(mathint a, mathint b) returns mathint = a == 0 ? 0 : (a - 1) / b + 1;
 
 // Verify no more entry points exist
 rule entryPoints(method f) filtered { f -> !f.isView } {
@@ -409,4 +412,84 @@ rule withdrawPSM_revert(address asset, uint256 amount) {
 
     assert lastReverted <=> revert1 || revert2 || revert3 ||
                             revert4 || revert5 || revert6, "Revert rules failed";
+}
+
+// Verify correct storage changes for non reverting transferUSDCToCCTP
+rule transferUSDCToCCTP(uint256 usdcAmount, uint32 destinationDomain) {
+    env e;
+
+    require cctp.times() == 0;
+
+    bytes32 LIMIT_USDC_TO_CCTP = LIMIT_USDC_TO_CCTP();
+    IRateLimits.RateLimitData rateLimitsUsdcToCctpData = rateLimits.getRateLimitData(LIMIT_USDC_TO_CCTP);
+    mathint currentRateLimitUsdcToCctpBefore = rateLimits.getCurrentRateLimit(e, LIMIT_USDC_TO_CCTP);
+    bytes32 keyDomain = aux.makeDomainKey(LIMIT_USDC_TO_DOMAIN(), destinationDomain);
+    IRateLimits.RateLimitData rateLimitsUsdcToDomainData = rateLimits.getRateLimitData(keyDomain);
+    mathint currentRateLimitUsdcToDomainBefore = rateLimits.getCurrentRateLimit(e, keyDomain);
+
+    mathint burnLimit = cctpBurnLimit;
+
+    mathint calcTimes = burnLimit > 0 ? defDivUp(usdcAmount, burnLimit) : 0;
+
+    transferUSDCToCCTP(e, usdcAmount, destinationDomain);
+
+    mathint currentRateLimitUsdcToCctpAfter = rateLimits.getCurrentRateLimit(e, LIMIT_USDC_TO_CCTP);
+    mathint currentRateLimitUsdcToDomainAfter = rateLimits.getCurrentRateLimit(e, keyDomain);
+    address usdcLastSenderAfter = usdc.lastSender();
+    bytes4  usdcLastSigAfter = usdc.lastSig();
+    address cctpLastSenderAfter = cctp.lastSender();
+    bytes4  cctpLastSigAfter = cctp.lastSig();
+    mathint cctpTimesAfter = cctp.times();
+
+    assert currentRateLimitUsdcToCctpBefore == max_uint256 => currentRateLimitUsdcToCctpAfter == max_uint256, "Assert ";
+    assert currentRateLimitUsdcToCctpBefore < max_uint256 => currentRateLimitUsdcToCctpAfter == currentRateLimitUsdcToCctpBefore - usdcAmount, "Assert ";
+    assert currentRateLimitUsdcToDomainBefore == max_uint256 => currentRateLimitUsdcToDomainAfter == max_uint256, "Assert ";
+    assert currentRateLimitUsdcToDomainBefore < max_uint256 => currentRateLimitUsdcToDomainAfter == currentRateLimitUsdcToDomainBefore - usdcAmount, "Assert ";
+    assert usdcLastSenderAfter == proxy, "Assert ";
+    assert usdcLastSigAfter == to_bytes4(0x095ea7b3), "Assert ";
+    assert calcTimes > 0 => cctpLastSenderAfter == proxy, "Assert ";
+    assert calcTimes > 0 => cctpLastSigAfter == to_bytes4(0x6fd3504e), "Assert ";
+    assert cctpTimesAfter == calcTimes, "Assert ";
+}
+
+// Verify revert rules on transferUSDCToCCTP
+rule transferUSDCToCCTP_revert(uint256 usdcAmount, uint32 destinationDomain) {
+    env e;
+
+    bool hasRoleRelayerSender = hasRole(RELAYER(), e.msg.sender);
+    bool active = active();
+
+    bytes32 LIMIT_USDC_TO_CCTP = LIMIT_USDC_TO_CCTP();
+    IRateLimits.RateLimitData rateLimitsUsdcToCctpData = rateLimits.getRateLimitData(LIMIT_USDC_TO_CCTP);
+    mathint currentRateLimitUsdcToCctp = rateLimits.getCurrentRateLimit(e, LIMIT_USDC_TO_CCTP);
+    bytes32 keyDomain = aux.makeDomainKey(LIMIT_USDC_TO_DOMAIN(), destinationDomain);
+    IRateLimits.RateLimitData rateLimitsUsdcToDomainData = rateLimits.getRateLimitData(keyDomain);
+    mathint currentRateLimitUsdcToDomain = rateLimits.getCurrentRateLimit(e, keyDomain);
+
+    bytes32 mintRecipient = mintRecipients(destinationDomain);
+
+    // Setup assumptions
+    require proxy.hasRole(proxy.CONTROLLER(), currentContract);
+    require rateLimits.hasRole(rateLimits.CONTROLLER(), currentContract);
+    // Practical assumptions
+    require e.block.timestamp >= rateLimitsUsdcToCctpData.lastUpdated;
+    require rateLimitsUsdcToCctpData.slope * (e.block.timestamp - rateLimitsUsdcToCctpData.lastUpdated) + rateLimitsUsdcToCctpData.lastAmount <= max_uint256;
+    require e.block.timestamp >= rateLimitsUsdcToDomainData.lastUpdated;
+    require rateLimitsUsdcToDomainData.slope * (e.block.timestamp - rateLimitsUsdcToDomainData.lastUpdated) + rateLimitsUsdcToDomainData.lastAmount <= max_uint256;
+
+    transferUSDCToCCTP@withrevert(e, usdcAmount, destinationDomain);
+
+    bool revert1 = e.msg.value > 0;
+    bool revert2 = !hasRoleRelayerSender;
+    bool revert3 = !active;
+    bool revert4 = rateLimitsUsdcToCctpData.maxAmount == 0;
+    bool revert5 = usdcAmount > currentRateLimitUsdcToCctp;
+    bool revert6 = rateLimitsUsdcToDomainData.maxAmount == 0;
+    bool revert7 = usdcAmount > currentRateLimitUsdcToDomain;
+    bool revert8 = mintRecipient == to_bytes32(0x0);
+    bool revert9 = !callProxySuccess;
+
+    assert lastReverted <=> revert1 || revert2 || revert3 ||
+                            revert4 || revert5 || revert6 ||
+                            revert7 || revert8 || revert9, "Revert rules failed";
 }
