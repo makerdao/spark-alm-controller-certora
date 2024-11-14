@@ -1,0 +1,3 @@
+[submodule "spark-alm-controller"]
+	path = spark-alm-controller
+	url = https://github.com/marsfoundation/spark-alm-controller.git
