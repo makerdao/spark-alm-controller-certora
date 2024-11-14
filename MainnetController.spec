@@ -333,8 +333,13 @@ rule reactivate_revert() {
 rule mintUSDS(uint256 usdsAmount) {
     env e;
 
+    bytes32 LIMIT_USDS_MINT = LIMIT_USDS_MINT();
+    IRateLimits.RateLimitData rateLimitsUsdsMintData = rateLimits.getRateLimitData(LIMIT_USDS_MINT);
+    mathint currentRateLimitBefore = rateLimits.getCurrentRateLimit(e, LIMIT_USDS_MINT);
+
     mintUSDS(e, usdsAmount);
 
+    mathint currentRateLimitAfter = rateLimits.getCurrentRateLimit(e, LIMIT_USDS_MINT);
     uint256 vaultLastAmountAfter = vault.lastAmount();
     address vaultLastSenderAfter = vault.lastSender();
     bytes4  vaultLastSigAfter = vault.lastSig();
@@ -344,14 +349,16 @@ rule mintUSDS(uint256 usdsAmount) {
     address usdsLastSenderAfter = usds.lastSender();
     bytes4  usdsLastSigAfter = usds.lastSig();
 
-    // assert vaultLastAmountAfter == usdsAmount, "Assert 1";
-    assert vaultLastSenderAfter == proxy, "Assert 2";
-    assert vaultLastSigAfter == to_bytes4(0x3b304147), "Assert 3";
-    // assert usdsLastFromAfter == buffer(), "Assert 4";
-    // assert usdsLastToAfter == proxy, "Assert 5";
-    // assert usdsLastAmountAfter == usdsAmount, "Assert 6";
-    assert usdsLastSenderAfter == proxy, "Assert 7";
-    assert usdsLastSigAfter == to_bytes4(0x23b872dd), "Assert 8";
+    assert currentRateLimitBefore == max_uint256 => currentRateLimitAfter == max_uint256, "Assert ";
+    assert currentRateLimitBefore < max_uint256 => currentRateLimitAfter == currentRateLimitBefore - usdsAmount, "Assert ";
+    // assert vaultLastAmountAfter == usdsAmount, "Assert ";
+    assert vaultLastSenderAfter == proxy, "Assert ";
+    assert vaultLastSigAfter == to_bytes4(0x3b304147), "Assert ";
+    // assert usdsLastFromAfter == buffer(), "Assert ";
+    // assert usdsLastToAfter == proxy, "Assert ";
+    // assert usdsLastAmountAfter == usdsAmount, "Assert ";
+    assert usdsLastSenderAfter == proxy, "Assert ";
+    assert usdsLastSigAfter == to_bytes4(0x23b872dd), "Assert ";
 }
 
 // Verify revert rules on mintUSDS
@@ -389,23 +396,30 @@ rule mintUSDS_revert(uint256 usdsAmount) {
 rule burnUSDS(uint256 usdsAmount) {
     env e;
 
+    bytes32 LIMIT_USDS_MINT = LIMIT_USDS_MINT();
+    IRateLimits.RateLimitData rateLimitsUsdsMintData = rateLimits.getRateLimitData(LIMIT_USDS_MINT);
+    mathint currentRateLimitBefore = rateLimits.getCurrentRateLimit(e, LIMIT_USDS_MINT);
+
     burnUSDS(e, usdsAmount);
 
-    uint256 vaultLastAmountAfter = vault.lastAmount();
+    mathint currentRateLimitAfter = rateLimits.getCurrentRateLimit(e, LIMIT_USDS_MINT);
+    mathint vaultLastAmountAfter = vault.lastAmount();
     address vaultLastSenderAfter = vault.lastSender();
     bytes4  vaultLastSigAfter = vault.lastSig();
     address usdsLastFromAfter = usds.lastFrom();
     address usdsLastToAfter = usds.lastTo();
-    uint256 usdsLastAmountAfter = usds.lastAmount();
+    mathint usdsLastAmountAfter = usds.lastAmount();
     address usdsLastSenderAfter = usds.lastSender();
     bytes4  usdsLastSigAfter = usds.lastSig();
 
-    // assert vaultLastAmountAfter == usdsAmount, "Assert 1";
-    assert vaultLastSenderAfter == proxy, "Assert 2";
-    assert vaultLastSigAfter == to_bytes4(0xb38a1620), "Assert 3";
-    // assert usdsLastFromAfter == proxy, "Assert 4";
-    // assert usdsLastToAfter == proxy, "Assert 5";
-    // assert usdsLastAmountAfter == usdsAmount, "Assert 6";
+    assert currentRateLimitBefore == max_uint256 => currentRateLimitAfter == max_uint256, "Assert ";
+    assert currentRateLimitBefore < max_uint256 => currentRateLimitAfter == defMin(currentRateLimitBefore + usdsAmount, rateLimitsUsdsMintData.maxAmount), "Assert "; 
+    // assert vaultLastAmountAfter == usdsAmount, "Assert ";
+    assert vaultLastSenderAfter == proxy, "Assert ";
+    assert vaultLastSigAfter == to_bytes4(0xb38a1620), "Assert ";
+    // assert usdsLastFromAfter == proxy, "Assert ";
+    // assert usdsLastToAfter == proxy, "Assert ";
+    // assert usdsLastAmountAfter == usdsAmount, "Assert ";
     assert usdsLastSenderAfter == proxy, "Assert 7";
     assert usdsLastSigAfter == to_bytes4(0xa9059cbb), "Assert 8";
 }
@@ -554,8 +568,13 @@ rule redeemFromSUSDS_revert(uint256 sUsdsSharesAmount) {
 rule swapUSDSToUSDC(uint256 usdcAmount) {
     env e;
 
+    bytes32 LIMIT_USDS_TO_USDC = LIMIT_USDS_TO_USDC();
+    IRateLimits.RateLimitData rateLimitsUsdsToUsdcData = rateLimits.getRateLimitData(LIMIT_USDS_TO_USDC);
+    mathint currentRateLimitBefore = rateLimits.getCurrentRateLimit(e, LIMIT_USDS_TO_USDC);
+
     swapUSDSToUSDC(e, usdcAmount);
 
+    mathint currentRateLimitAfter = rateLimits.getCurrentRateLimit(e, LIMIT_USDS_TO_USDC);
     address usdsLastSenderAfter = usds.lastSender();
     bytes4  usdsLastSigAfter = usds.lastSig();
     address daiUsdsLastSenderAfter = daiUsds.lastSender();
@@ -565,6 +584,8 @@ rule swapUSDSToUSDC(uint256 usdcAmount) {
     address psmLastSenderAfter = psm.lastSender();
     bytes4  psmLastSigAfter = psm.lastSig();
 
+    assert currentRateLimitBefore == max_uint256 => currentRateLimitAfter == max_uint256, "Assert ";
+    assert currentRateLimitBefore < max_uint256 => currentRateLimitAfter == currentRateLimitBefore - usdcAmount, "Assert ";
     assert usdsLastSenderAfter == proxy, "Assert ";
     assert usdsLastSigAfter == to_bytes4(0x095ea7b3), "Assert ";
     assert daiUsdsLastSenderAfter == proxy, "Assert ";
@@ -614,8 +635,13 @@ rule swapUSDSToUSDC_revert(uint256 usdcAmount) {
 rule swapUSDCToUSDS(uint256 usdcAmount) {
     env e;
 
+    bytes32 LIMIT_USDS_TO_USDC = LIMIT_USDS_TO_USDC();
+    IRateLimits.RateLimitData rateLimitsUsdsToUsdcData = rateLimits.getRateLimitData(LIMIT_USDS_TO_USDC);
+    mathint currentRateLimitBefore = rateLimits.getCurrentRateLimit(e, LIMIT_USDS_TO_USDC);
+
     swapUSDCToUSDS(e, usdcAmount);
 
+    mathint currentRateLimitAfter = rateLimits.getCurrentRateLimit(e, LIMIT_USDS_TO_USDC);
     address usdcLastSenderAfter = usdc.lastSender();
     bytes4  usdcLastSigAfter = usdc.lastSig();
     address psmLastSenderAfter = psm.lastSender();
@@ -625,6 +651,8 @@ rule swapUSDCToUSDS(uint256 usdcAmount) {
     address daiUsdsLastSenderAfter = daiUsds.lastSender();
     bytes4  daiUsdsLastSigAfter = daiUsds.lastSig();
 
+    assert currentRateLimitBefore == max_uint256 => currentRateLimitAfter == max_uint256, "Assert ";
+    assert currentRateLimitBefore < max_uint256 => currentRateLimitAfter == defMin(currentRateLimitBefore + usdcAmount, rateLimitsUsdsToUsdcData.maxAmount), "Assert "; 
     assert usdcLastSenderAfter == proxy, "Assert ";
     assert usdcLastSigAfter == to_bytes4(0x095ea7b3), "Assert ";
     assert psmLastSenderAfter == proxy, "Assert ";
@@ -677,18 +705,31 @@ rule transferUSDCToCCTP(uint256 usdcAmount, uint32 destinationDomain) {
 
     require cctp.times() == 0;
 
+    bytes32 LIMIT_USDC_TO_CCTP = LIMIT_USDC_TO_CCTP();
+    IRateLimits.RateLimitData rateLimitsUsdcToCctpData = rateLimits.getRateLimitData(LIMIT_USDC_TO_CCTP);
+    mathint currentRateLimitUsdcToCctpBefore = rateLimits.getCurrentRateLimit(e, LIMIT_USDC_TO_CCTP);
+    bytes32 keyDomain = aux.makeDomainKey(LIMIT_USDC_TO_DOMAIN(), destinationDomain);
+    IRateLimits.RateLimitData rateLimitsUsdcToDomainData = rateLimits.getRateLimitData(keyDomain);
+    mathint currentRateLimitUsdcToDomainBefore = rateLimits.getCurrentRateLimit(e, keyDomain);
+
     mathint burnLimit = cctpBurnLimit;
 
     mathint calcTimes = burnLimit > 0 ? defDivUp(usdcAmount, burnLimit) : 0;
 
     transferUSDCToCCTP(e, usdcAmount, destinationDomain);
 
+    mathint currentRateLimitUsdcToCctpAfter = rateLimits.getCurrentRateLimit(e, LIMIT_USDC_TO_CCTP);
+    mathint currentRateLimitUsdcToDomainAfter = rateLimits.getCurrentRateLimit(e, keyDomain);
     address usdcLastSenderAfter = usdc.lastSender();
     bytes4  usdcLastSigAfter = usdc.lastSig();
     address cctpLastSenderAfter = cctp.lastSender();
     bytes4  cctpLastSigAfter = cctp.lastSig();
     mathint cctpTimesAfter = cctp.times();
 
+    assert currentRateLimitUsdcToCctpBefore == max_uint256 => currentRateLimitUsdcToCctpAfter == max_uint256, "Assert ";
+    assert currentRateLimitUsdcToCctpBefore < max_uint256 => currentRateLimitUsdcToCctpAfter == currentRateLimitUsdcToCctpBefore - usdcAmount, "Assert ";
+    assert currentRateLimitUsdcToDomainBefore == max_uint256 => currentRateLimitUsdcToDomainAfter == max_uint256, "Assert ";
+    assert currentRateLimitUsdcToDomainBefore < max_uint256 => currentRateLimitUsdcToDomainAfter == currentRateLimitUsdcToDomainBefore - usdcAmount, "Assert ";
     assert usdcLastSenderAfter == proxy, "Assert ";
     assert usdcLastSigAfter == to_bytes4(0x095ea7b3), "Assert ";
     assert calcTimes > 0 => cctpLastSenderAfter == proxy, "Assert ";
@@ -706,7 +747,6 @@ rule transferUSDCToCCTP_revert(uint256 usdcAmount, uint32 destinationDomain) {
     bytes32 LIMIT_USDC_TO_CCTP = LIMIT_USDC_TO_CCTP();
     IRateLimits.RateLimitData rateLimitsUsdcToCctpData = rateLimits.getRateLimitData(LIMIT_USDC_TO_CCTP);
     mathint currentRateLimitUsdcToCctp = rateLimits.getCurrentRateLimit(e, LIMIT_USDC_TO_CCTP);
-
     bytes32 keyDomain = aux.makeDomainKey(LIMIT_USDC_TO_DOMAIN(), destinationDomain);
     IRateLimits.RateLimitData rateLimitsUsdcToDomainData = rateLimits.getRateLimitData(keyDomain);
     mathint currentRateLimitUsdcToDomain = rateLimits.getCurrentRateLimit(e, keyDomain);
