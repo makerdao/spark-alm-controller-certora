@@ -182,20 +182,24 @@ rule doCall_revert(address target, bytes data) {
 rule doCallWithValue_revert(address target, bytes data, uint256 value) {
     env e;
 
-    mathint balance = nativeBalances[currentContract] + e.msg.value;
+    require e.msg.sender != currentContract;
+
+    mathint balanceSender = nativeBalances[e.msg.sender];
+    mathint balanceProxy = nativeBalances[currentContract];
     mathint targetCodeSize = nativeCodesize[target];
     require nativeBalances[currentContract] >= 0 && targetCodeSize >= 0;
     bool hasRoleControllerSender = hasRole(CONTROLLER(), e.msg.sender);
 
     doCallWithValue@withrevert(e, target, data, value);
 
-    bool revert1 = !hasRoleControllerSender;
-    bool revert2 = value > balance;
-    bool revert3 = !callSuccess;
-    bool revert4 = callSuccess && callRetLength == 0 && targetCodeSize == 0;
+    bool revert1 = balanceSender < e.msg.value;
+    bool revert2 = !hasRoleControllerSender;
+    bool revert3 = value > balanceProxy + e.msg.value;
+    bool revert4 = !callSuccess;
+    bool revert5 = callSuccess && callRetLength == 0 && targetCodeSize == 0;
 
     assert lastReverted <=> revert1 || revert2 || revert3 ||
-                            revert4, "Revert rules failed";
+                            revert4 || revert5, "Revert rules failed";
 }
 
 // Verify revert rules on doDelegateCall
