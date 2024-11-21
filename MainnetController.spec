@@ -59,21 +59,22 @@ methods {
     function sUsds.lastSig() external returns (bytes4) envfree;
     function aux.makeDomainKey(bytes32,uint32) external returns (bytes32) envfree;
     //
-    function _._ => DISPATCH [
-        _.approve(address,uint256),
-        _.transfer(address,uint256),
-        _.transferFrom(address,address,uint256),
-        _.depositForBurn(uint256,uint32,bytes32,address),
-        _.usdsToDai(address,uint256),
-        _.daiToUsds(address,uint256),
-        _.usdsToDai(address,uint256),
-        _.buyGemNoFee(address,uint256),
-        _.sellGemNoFee(address,uint256),
-        _.draw(uint256),
-        _.wipe(uint256),
-        _.deposit(uint256,address),
-        _.withdraw(uint256,address,address),
-        _.redeem(uint256,address,address)
+    unresolved external in proxy.doCall(address,bytes) => DISPATCH [
+        dai.approve(address,uint256),
+        usds.approve(address,uint256),
+        usdc.approve(address,uint256),
+        usds.transfer(address,uint256),
+        usds.transferFrom(address,address,uint256),
+        cctp.depositForBurn(uint256,uint32,bytes32,address),
+        daiUsds.daiToUsds(address,uint256),
+        daiUsds.usdsToDai(address,uint256),
+        psm.buyGemNoFee(address,uint256),
+        psm.sellGemNoFee(address,uint256),
+        vault.draw(uint256),
+        vault.wipe(uint256),
+        sUsds.deposit(uint256,address),
+        sUsds.withdraw(uint256,address,address),
+        sUsds.redeem(uint256,address,address)
     ] default HAVOC_ALL;
     function _.burnLimitsPerMessage(address token) external => burnLimitsPerMessageSummary() expect uint256;
 }

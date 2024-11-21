@@ -41,11 +41,11 @@ methods {
     function aux.makeAssetKey(bytes32,address) external returns (bytes32) envfree;
     function aux.makeDomainKey(bytes32,uint32) external returns (bytes32) envfree;
     //
-    function _._ => DISPATCH [
+    unresolved external in proxy.doCall(address,bytes) => DISPATCH [
         _.approve(address,uint256),
-        _.deposit(address,address,uint256),
-        _.withdraw(address,address,uint256),
-        _.depositForBurn(uint256,uint32,bytes32,address)
+        psm.deposit(address,address,uint256),
+        psm.withdraw(address,address,uint256),
+        cctp.depositForBurn(uint256,uint32,bytes32,address)
     ] default HAVOC_ALL;
     function _.burnLimitsPerMessage(address token) external => burnLimitsPerMessageSummary() expect uint256;
 }
