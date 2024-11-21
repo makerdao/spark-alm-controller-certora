@@ -233,7 +233,7 @@ rule setMintRecipient(uint32 destinationDomain, bytes32 mintRecipient) {
     bytes32 mintRecipientsOtherAfter = mintRecipients(otherUint32);
 
     assert mintRecipientsDestinationDomainAfter == mintRecipient, "Assert 1";
-    assert mintRecipientsOtherAfter == mintRecipientsOtherBefore, "Assert 1";
+    assert mintRecipientsOtherAfter == mintRecipientsOtherBefore, "Assert 2";
 }
 
 // Verify revert rules on setMintRecipient
@@ -318,12 +318,12 @@ rule depositPSM(address asset, uint256 amount) {
     address psmLastSenderAfter = psm.lastSender();
     bytes4  psmLastSigAfter = psm.lastSig();
 
-    assert currentRateLimitBefore == max_uint256 => currentRateLimitAfter == max_uint256, "Assert ";
-    assert currentRateLimitBefore < max_uint256 => currentRateLimitAfter == currentRateLimitBefore - amount, "Assert ";
-    assert assetLastSenderAfter == proxy, "Assert ";
-    assert assetLastSigAfter == to_bytes4(0x095ea7b3), "Assert ";
-    assert psmLastSenderAfter == proxy, "Assert ";
-    assert psmLastSigAfter == to_bytes4(0x8340f549), "Assert ";
+    assert currentRateLimitBefore == max_uint256 => currentRateLimitAfter == max_uint256, "Assert 1";
+    assert currentRateLimitBefore < max_uint256 => currentRateLimitAfter == currentRateLimitBefore - amount, "Assert 2";
+    assert assetLastSenderAfter == proxy, "Assert 3";
+    assert assetLastSigAfter == to_bytes4(0x095ea7b3), "Assert 4";
+    assert psmLastSenderAfter == proxy, "Assert 5";
+    assert psmLastSigAfter == to_bytes4(0x8340f549), "Assert 6";
 }
 
 // Verify revert rules on depositPSM
@@ -375,10 +375,10 @@ rule withdrawPSM(address asset, uint256 amount) {
     address psmLastSenderAfter = psm.lastSender();
     bytes4  psmLastSigAfter = psm.lastSig();
 
-    assert currentRateLimitBefore == max_uint256 => currentRateLimitAfter == max_uint256, "Assert ";
-    assert currentRateLimitBefore < max_uint256 => currentRateLimitAfter == currentRateLimitBefore - assetsWithdrawn, "Assert ";
-    assert psmLastSenderAfter == proxy, "Assert ";
-    assert psmLastSigAfter == to_bytes4(0xd9caed12), "Assert ";
+    assert currentRateLimitBefore == max_uint256 => currentRateLimitAfter == max_uint256, "Assert 1";
+    assert currentRateLimitBefore < max_uint256 => currentRateLimitAfter == currentRateLimitBefore - assetsWithdrawn, "Assert 2";
+    assert psmLastSenderAfter == proxy, "Assert 3";
+    assert psmLastSigAfter == to_bytes4(0xd9caed12), "Assert 4";
 }
 
 // Verify revert rules on withdrawPSM
@@ -441,15 +441,15 @@ rule transferUSDCToCCTP(uint256 usdcAmount, uint32 destinationDomain) {
     bytes4  cctpLastSigAfter = cctp.lastSig();
     mathint cctpTimesAfter = cctp.times();
 
-    assert currentRateLimitUsdcToCctpBefore == max_uint256 => currentRateLimitUsdcToCctpAfter == max_uint256, "Assert ";
-    assert currentRateLimitUsdcToCctpBefore < max_uint256 => currentRateLimitUsdcToCctpAfter == currentRateLimitUsdcToCctpBefore - usdcAmount, "Assert ";
-    assert currentRateLimitUsdcToDomainBefore == max_uint256 => currentRateLimitUsdcToDomainAfter == max_uint256, "Assert ";
-    assert currentRateLimitUsdcToDomainBefore < max_uint256 => currentRateLimitUsdcToDomainAfter == currentRateLimitUsdcToDomainBefore - usdcAmount, "Assert ";
-    assert usdcLastSenderAfter == proxy, "Assert ";
-    assert usdcLastSigAfter == to_bytes4(0x095ea7b3), "Assert ";
-    assert calcTimes > 0 => cctpLastSenderAfter == proxy, "Assert ";
-    assert calcTimes > 0 => cctpLastSigAfter == to_bytes4(0x6fd3504e), "Assert ";
-    assert cctpTimesAfter == calcTimes, "Assert ";
+    assert currentRateLimitUsdcToCctpBefore == max_uint256 => currentRateLimitUsdcToCctpAfter == max_uint256, "Assert 1";
+    assert currentRateLimitUsdcToCctpBefore < max_uint256 => currentRateLimitUsdcToCctpAfter == currentRateLimitUsdcToCctpBefore - usdcAmount, "Assert 2";
+    assert currentRateLimitUsdcToDomainBefore == max_uint256 => currentRateLimitUsdcToDomainAfter == max_uint256, "Assert 3";
+    assert currentRateLimitUsdcToDomainBefore < max_uint256 => currentRateLimitUsdcToDomainAfter == currentRateLimitUsdcToDomainBefore - usdcAmount, "Assert 4";
+    assert usdcLastSenderAfter == proxy, "Assert 5";
+    assert usdcLastSigAfter == to_bytes4(0x095ea7b3), "Assert 6";
+    assert calcTimes > 0 => cctpLastSenderAfter == proxy, "Assert 7";
+    assert calcTimes > 0 => cctpLastSigAfter == to_bytes4(0x6fd3504e), "Assert 8";
+    assert cctpTimesAfter == calcTimes, "Assert 9";
 }
 
 // Verify revert rules on transferUSDCToCCTP
