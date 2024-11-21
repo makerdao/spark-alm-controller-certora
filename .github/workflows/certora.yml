@@ -13,6 +13,7 @@ jobs:
           - rate-limits
           - mainnet-controller
           - foreign-controller
+          - alm-proxy
 
     steps:
       - name: Checkout
