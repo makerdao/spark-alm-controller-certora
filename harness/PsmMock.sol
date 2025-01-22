@@ -11,7 +11,7 @@ contract PsmMock {
 
     function sellGemNoFee(address usr, uint256 gemAmt) external {
         lastUsr = usr;
-        lastGemAmount = gemAmt;
+        lastGemAmount += gemAmt;
         lastSender = msg.sender;
         lastSig = msg.sig;
     }
@@ -23,7 +23,7 @@ contract PsmMock {
         lastSig = msg.sig;
     }
 
-    function fill() external returns (uint256) {
+    function fill() external view returns (uint256) {
         return retValue;
     }
 }

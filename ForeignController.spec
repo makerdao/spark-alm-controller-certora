@@ -30,17 +30,27 @@ methods {
     function rateLimits.CONTROLLER() external returns (bytes32) envfree;
     function rateLimits.hasRole(bytes32,address) external returns (bool) envfree;
     function rateLimits.getRateLimitData(bytes32) external returns (IRateLimits.RateLimitData) envfree;
+    function cctp.lastAmount() external returns (uint256) envfree;
+    function cctp.lastDestinationDomain() external returns (uint32) envfree;
+    function cctp.lastMintRecipient() external returns (bytes32) envfree;
+    function cctp.lastToken() external returns (address) envfree;
     function cctp.lastSender() external returns (address) envfree;
     function cctp.lastSig() external returns (bytes4) envfree;
     function cctp.times() external returns (uint256) envfree;
+    function psm.lastAsset() external returns (address) envfree;
+    function psm.lastReceiver() external returns (address) envfree;
+    function psm.lastAmount() external returns (uint256) envfree;
     function psm.lastSender() external returns (address) envfree;
     function psm.lastSig() external returns (bytes4) envfree;
     function psm.retValue() external returns (uint256) envfree;
+    function usdc.lastTo() external returns (address) envfree;
+    function usdc.lastAmount() external returns (uint256) envfree;
     function usdc.lastSender() external returns (address) envfree;
     function usdc.lastSig() external returns (bytes4) envfree;
     function aux.makeAssetKey(bytes32,address) external returns (bytes32) envfree;
     function aux.makeDomainKey(bytes32,uint32) external returns (bytes32) envfree;
     //
+    function _.approve(address,uint256) external => DISPATCHER(true);
     unresolved external in proxy.doCall(address,bytes) => DISPATCH [
         _.approve(address,uint256),
         psm.deposit(address,address,uint256),
@@ -313,17 +323,27 @@ rule depositPSM(address asset, uint256 amount) {
     depositPSM(e, asset, amount);
 
     mathint currentRateLimitAfter = rateLimits.getCurrentRateLimit(e, key);
+    address assetLastToAfter = asset.lastTo(e);
+    mathint assetLastAmountAfter = asset.lastAmount(e);
     address assetLastSenderAfter = asset.lastSender(e);
     bytes4  assetLastSigAfter = asset.lastSig(e);
+    address psmLastAssetAfter = psm.lastAsset();
+    address psmLastReceiverAfter = psm.lastReceiver();
+    mathint psmLastAmountAfter = psm.lastAmount();
     address psmLastSenderAfter = psm.lastSender();
     bytes4  psmLastSigAfter = psm.lastSig();
 
     assert currentRateLimitBefore == max_uint256 => currentRateLimitAfter == max_uint256, "Assert 1";
     assert currentRateLimitBefore < max_uint256 => currentRateLimitAfter == currentRateLimitBefore - amount, "Assert 2";
-    assert assetLastSenderAfter == proxy, "Assert 3";
-    assert assetLastSigAfter == to_bytes4(0x095ea7b3), "Assert 4";
-    assert psmLastSenderAfter == proxy, "Assert 5";
-    assert psmLastSigAfter == to_bytes4(0x8340f549), "Assert 6";
+    assert assetLastToAfter == psm, "Assert 3";
+    assert assetLastAmountAfter == amount, "Assert 4";
+    assert assetLastSenderAfter == proxy, "Assert 5";
+    assert assetLastSigAfter == to_bytes4(0x095ea7b3), "Assert 6";
+    assert psmLastAssetAfter == asset, "Assert 7";
+    assert psmLastReceiverAfter == proxy, "Assert 8";
+    assert psmLastAmountAfter == amount, "Assert 9";
+    assert psmLastSenderAfter == proxy, "Assert 10";
+    assert psmLastSigAfter == to_bytes4(0x8340f549), "Assert 11";
 }
 
 // Verify revert rules on depositPSM
@@ -360,7 +380,7 @@ rule depositPSM_revert(address asset, uint256 amount) {
 }
 
 // Verify correct storage changes for non reverting withdrawPSM
-rule withdrawPSM(address asset, uint256 amount) {
+rule withdrawPSM(address asset, uint256 maxAmount) {
     env e;
 
     bytes32 key = aux.makeAssetKey(LIMIT_PSM_WITHDRAW(), asset);
@@ -369,20 +389,26 @@ rule withdrawPSM(address asset, uint256 amount) {
 
     mathint assetsWithdrawn = psm.retValue();
 
-    withdrawPSM(e, asset, amount);
+    withdrawPSM(e, asset, maxAmount);
 
     mathint currentRateLimitAfter = rateLimits.getCurrentRateLimit(e, key);
+    address psmLastAssetAfter = psm.lastAsset();
+    address psmLastReceiverAfter = psm.lastReceiver();
+    mathint psmLastAmountAfter = psm.lastAmount();
     address psmLastSenderAfter = psm.lastSender();
     bytes4  psmLastSigAfter = psm.lastSig();
 
     assert currentRateLimitBefore == max_uint256 => currentRateLimitAfter == max_uint256, "Assert 1";
     assert currentRateLimitBefore < max_uint256 => currentRateLimitAfter == currentRateLimitBefore - assetsWithdrawn, "Assert 2";
-    assert psmLastSenderAfter == proxy, "Assert 3";
-    assert psmLastSigAfter == to_bytes4(0xd9caed12), "Assert 4";
+    assert psmLastAssetAfter == asset, "Assert 3";
+    assert psmLastReceiverAfter == proxy, "Assert 4";
+    assert psmLastAmountAfter == maxAmount, "Assert 5";
+    assert psmLastSenderAfter == proxy, "Assert 6";
+    assert psmLastSigAfter == to_bytes4(0xd9caed12), "Assert 7";
 }
 
 // Verify revert rules on withdrawPSM
-rule withdrawPSM_revert(address asset, uint256 amount) {
+rule withdrawPSM_revert(address asset, uint256 maxAmount) {
     env e;
 
     bool hasRoleRelayerSender = hasRole(RELAYER(), e.msg.sender);
@@ -401,7 +427,7 @@ rule withdrawPSM_revert(address asset, uint256 amount) {
 
     mathint assetsWithdrawn = psm.retValue();
 
-    withdrawPSM@withrevert(e, asset, amount);
+    withdrawPSM@withrevert(e, asset, maxAmount);
 
     bool revert1 = e.msg.value > 0;
     bool revert2 = !hasRoleRelayerSender;
@@ -431,12 +457,23 @@ rule transferUSDCToCCTP(uint256 usdcAmount, uint32 destinationDomain) {
 
     mathint calcTimes = burnLimit > 0 ? defDivUp(usdcAmount, burnLimit) : 0;
 
+    mathint cctpLastAmountBefore = cctp.lastAmount();
+    require cctpLastAmountBefore == 0;
+
+    bytes32 mintRecipient = mintRecipients(destinationDomain);
+
     transferUSDCToCCTP(e, usdcAmount, destinationDomain);
 
     mathint currentRateLimitUsdcToCctpAfter = rateLimits.getCurrentRateLimit(e, LIMIT_USDC_TO_CCTP);
     mathint currentRateLimitUsdcToDomainAfter = rateLimits.getCurrentRateLimit(e, keyDomain);
+    address usdcLastToAfter = usdc.lastTo();
+    mathint usdcLastAmountAfter = usdc.lastAmount();
     address usdcLastSenderAfter = usdc.lastSender();
     bytes4  usdcLastSigAfter = usdc.lastSig();
+    mathint cctpLastAmountAfter = cctp.lastAmount();
+    uint32  cctpLastDestinationDomainAfter = cctp.lastDestinationDomain();
+    bytes32 cctpLastMintRecipientAfter = cctp.lastMintRecipient();
+    address cctpLastTokenAfter = cctp.lastToken();
     address cctpLastSenderAfter = cctp.lastSender();
     bytes4  cctpLastSigAfter = cctp.lastSig();
     mathint cctpTimesAfter = cctp.times();
@@ -445,11 +482,17 @@ rule transferUSDCToCCTP(uint256 usdcAmount, uint32 destinationDomain) {
     assert currentRateLimitUsdcToCctpBefore < max_uint256 => currentRateLimitUsdcToCctpAfter == currentRateLimitUsdcToCctpBefore - usdcAmount, "Assert 2";
     assert currentRateLimitUsdcToDomainBefore == max_uint256 => currentRateLimitUsdcToDomainAfter == max_uint256, "Assert 3";
     assert currentRateLimitUsdcToDomainBefore < max_uint256 => currentRateLimitUsdcToDomainAfter == currentRateLimitUsdcToDomainBefore - usdcAmount, "Assert 4";
-    assert usdcLastSenderAfter == proxy, "Assert 5";
-    assert usdcLastSigAfter == to_bytes4(0x095ea7b3), "Assert 6";
-    assert calcTimes > 0 => cctpLastSenderAfter == proxy, "Assert 7";
-    assert calcTimes > 0 => cctpLastSigAfter == to_bytes4(0x6fd3504e), "Assert 8";
-    assert cctpTimesAfter == calcTimes, "Assert 9";
+    assert usdcLastToAfter == cctp, "Assert 5";
+    assert usdcLastAmountAfter == usdcAmount, "Assert 6";
+    assert usdcLastSenderAfter == proxy, "Assert 7";
+    assert usdcLastSigAfter == to_bytes4(0x095ea7b3), "Assert 8";
+    assert calcTimes > 0 => cctpLastAmountAfter == usdcAmount, "Assert 9";
+    assert calcTimes > 0 => cctpLastDestinationDomainAfter == destinationDomain, "Assert 10";
+    assert calcTimes > 0 => cctpLastMintRecipientAfter == mintRecipient, "Assert 11";
+    assert calcTimes > 0 => cctpLastTokenAfter == usdc, "Assert 12";
+    assert calcTimes > 0 => cctpLastSenderAfter == proxy, "Assert 13";
+    assert calcTimes > 0 => cctpLastSigAfter == to_bytes4(0x6fd3504e), "Assert 14";
+    assert cctpTimesAfter == calcTimes, "Assert 15";
 }
 
 // Verify revert rules on transferUSDCToCCTP

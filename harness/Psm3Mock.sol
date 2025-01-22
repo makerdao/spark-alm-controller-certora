@@ -10,19 +10,19 @@ contract Psm3Mock {
     bytes4  public lastSig;
     uint256 public retValue;
 
-    function deposit(address asset, address receiver, uint256 amount) external returns (uint256) {
+    function deposit(address asset, address receiver, uint256 assetsToDeposit) external returns (uint256) {
         lastAsset = asset;
         lastReceiver = receiver;
-        lastAmount = amount;
+        lastAmount = assetsToDeposit;
         lastSender = msg.sender;
         lastSig = msg.sig;
         return retValue;
     }
 
-    function withdraw(address asset, address receiver, uint256 amount) external returns (uint256) {
+    function withdraw(address asset, address receiver, uint256 maxAssetsToWithdraw) external returns (uint256) {
         lastAsset = asset;
         lastReceiver = receiver;
-        lastAmount = amount;
+        lastAmount = maxAssetsToWithdraw;
         lastSender = msg.sender;
         lastSig = msg.sig;
         return retValue;

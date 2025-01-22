@@ -14,7 +14,7 @@ contract CctpMock {
     uint64  public retValue;
 
     function depositForBurn(uint256 amount, uint32 destinationDomain, bytes32 mintRecipient, address token) external returns (uint64) {
-        lastAmount = amount;
+        lastAmount += amount;
         lastDestinationDomain = destinationDomain;
         lastMintRecipient = mintRecipient;
         lastToken = token;
